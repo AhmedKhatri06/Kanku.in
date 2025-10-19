@@ -1,0 +1,233 @@
+/* Account.css */
+.account-container {
+  max-width: 500px;
+  margin: 40px auto;
+  padding: 30px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.account-container h2 {
+  text-align: center;
+  color: #1a237e;
+  margin-bottom: 30px;
+  font-size: 1.8rem;
+}
+
+.login-prompt {
+  color: #e53935;
+  margin-top: 24px;
+  text-align: center;
+  padding: 20px;
+  background: #ffebee;
+  border-radius: 8px;
+}
+
+.login-prompt a {
+  color: #ff9800;
+  text-decoration: underline;
+  font-weight: bold;
+}
+
+.account-content {
+  text-align: center;
+}
+
+.user-avatar {
+  margin-bottom: 20px;
+}
+
+.avatar-initial {
+  display: inline-block;
+  background: #ff9800;
+  color: #fff;
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
+  line-height: 60px;
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.user-info {
+  text-align: left;
+  margin: 20px 0;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.info-item {
+  margin-bottom: 12px;
+  font-size: 1rem;
+}
+
+.info-item strong {
+  color: #1a237e;
+  margin-right: 8px;
+}
+
+.profile-form,
+.password-form {
+  text-align: left;
+  margin: 20px 0;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.password-form h3 {
+  color: #1a237e;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: bold;
+  color: #333;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #ff9800;
+  box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.2);
+}
+
+.form-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.btn-primary,
+.btn-secondary,
+.btn-logout,
+.btn-danger {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.btn-primary {
+  background: #ff9800;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #f57c00;
+}
+
+.btn-secondary {
+  background: #1a237e;
+  color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #000051;
+}
+
+.btn-logout {
+  background: #757575;
+  color: white;
+}
+
+.btn-logout:hover:not(:disabled) {
+  background: #424242;
+}
+
+.btn-danger {
+  background: #e53935;
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #b71c1c;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.message {
+  padding: 12px;
+  border-radius: 6px;
+  margin: 16px 0;
+  text-align: center;
+  font-weight: bold;
+}
+
+.message.success {
+  background: #e8f5e8;
+  color: #1a237e;
+  border: 1px solid #4caf50;
+}
+
+.message.error {
+  background: #ffebee;
+  color: #e53935;
+  border: 1px solid #e53935;
+}
+
+.danger-zone {
+  margin-top: 30px;
+  padding: 20px;
+  background: #ffebee;
+  border: 1px solid #e53935;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.danger-zone h3 {
+  color: #e53935;
+  margin-bottom: 16px;
+}
+
+.danger-note {
+  color: #666;
+  font-size: 0.9rem;
+  margin-top: 12px;
+}
+
+/* Responsive Design */
+@media (max-width: 600px) {
+  .account-container {
+    margin: 20px;
+    padding: 20px;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+  }
+  
+  .action-buttons {
+    gap: 8px;
+  }
+}

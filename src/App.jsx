@@ -11,7 +11,9 @@ import Products from './components/Products.jsx'
 import Cart from './components/cart.jsx'
 import { CartProvider } from './components/cartcontext.jsx'
 import Account from './components/account.jsx'
-import about from './components/about.jsx'
+import About from './components/about.jsx' 
+import Contact from './components/contact.jsx'
+import SearchBar from './components/SearchBar.jsx'
 function App() {
 
   return (
@@ -21,12 +23,14 @@ function App() {
       <Routes>
         <Route path="/" element={<Hero />} />
         <Route path="/home" element={<Home />} />
-        <Route path="/about" element={<about />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/contact" element={<Contact />} />
         <Route path="/login" element={<Login />} />
         <Route path="/Products" element={<Products/>} />
         <Route path="/cart" element={<Cart/>} />
         <Route path="/account" element={<Account/>} />
         <Route path="/register" element={<Register />} />
+        <Route path="/search" element={<SearchBar />} />
       </Routes>
     </BrowserRouter>
     </CartProvider>

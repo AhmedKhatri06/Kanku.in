@@ -1,0 +1,84 @@
+.ar-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.ar-modal {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 700px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.ar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #eee;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 12px 12px 0 0;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.ar-content {
+  padding: 20px;
+}
+
+.video-container {
+  position: relative;
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.ar-video, .ar-canvas {
+  width: 100%;
+  max-width: 640px;
+  height: auto;
+  border-radius: 8px;
+  border: 2px solid #ddd;
+}
+
+.ar-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.ar-controls {
+  display: flex;
+  justify-content: center;
+}
+
+.try-on-btn {
+  background: #4CAF50;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.camera-error {
+  text-align: center;
+  padding: 40px 20px;
+}

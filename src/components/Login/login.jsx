@@ -3,118 +3,108 @@ import { useNavigate } from 'react-router-dom'
 import './login.css'
 import axios from "axios";
 
-
 const Login = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [message, setMessage] = useState('')
-  const [loggedIn, setLoggedIn] = useState(false)
+  const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
-   const handleLogin = async (e) => {
-    e.preventDefault();
-    try {
-      const res = await axios.post("http://localhost:5000/login", { email, password });
-      alert(res.data.message);
-      localStorage.setItem("token", res.data.token); // store JWT token
-    } catch (err) {
-      alert("Login failed");
-    }
-  };
-  // Check if user is already logged in (simulate session)
+
+  // Check if already logged in
   useEffect(() => {
-    const savedUser = localStorage.getItem('userEmail')
-    if (savedUser) {
-      setEmail(savedUser)
-      setLoggedIn(true)
+    const token = localStorage.getItem('token');
+    const user = localStorage.getItem('user');
+    if (token && user) {
+      navigate('/home');
     }
-  }, [])
+  }, [navigate]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
+    setLoading(true)
     setMessage('')
-    // Simulate backend check (replace with API in real world)
-    if (!email || !password) {
-      setMessage('Please enter both email and password.')
-      return
-    }
-    if (password.length < 6) {
-      setMessage('Password must be at least 6 characters.')
-      return
-    }
-    // Simulate login success
-    setLoggedIn(true)
-    localStorage.setItem('userEmail', email)
-    setMessage('')
-    setTimeout(() => {
-      navigate('/home')
-    }, 1000)
-  }
 
-  const handleLogout = () => {
-    localStorage.removeItem('userEmail')
-    setEmail('')
-    setPassword('')
-    setLoggedIn(false)
-    setMessage('Logged out successfully.')
-  }
-
-   const getInitial = (email) => {
-    if (!email) return ''
-    return email.trim()[0].toUpperCase()
+    try {
+      const response = await axios.post("http://localhost:5002/login", { 
+        email, 
+        password 
+      });
+      
+      if (response.data.success) {
+        // Store both token and user data
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+        
+        setMessage('✅ Login successful! Redirecting...');
+        
+        setTimeout(() => {
+          navigate('/home');
+          // Force refresh to update navbar
+          window.dispatchEvent(new Event('storage'));
+        }, 1500);
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      if (error.response && error.response.data.message) {
+        setMessage(`❌ ${error.response.data.message}`);
+      } else if (error.code === 'NETWORK_ERROR' || error.code === 'ECONNREFUSED') {
+        setMessage('❌ Cannot connect to server. Make sure backend is running on port 5001.');
+      } else {
+        setMessage('❌ Login failed. Please try again.');
+      }
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
     <div className="login-container">
       <form className="login-form" onSubmit={handleSubmit}>
         <h2>Login</h2>
-        {message && <div style={{color: '#e53935', marginBottom: '12px', textAlign: 'center'}}>{message}</div>}
-        {!loggedIn ? (
-          <>
-            <label>Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-              placeholder="Enter your email"
-              autoComplete="username"
-            />
-            <label>Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-              placeholder="Enter your password"
-              autoComplete="current-password"
-            />
-            <button type="submit">Login</button>
-            <p className="login-link">
-              Don't have an account? <a href="/register">Register</a>
-            </p>
-          </>
-        ) : (
-          <div style={{textAlign: 'center', color: '#1a237e', fontWeight: 'bold', fontSize: '1.2rem'}}>
-                <span
-              style={{
-                display: 'inline-block',
-                background: '#ff9800',
-                color: '#fff',
-                borderRadius: '50%',
-                width: '40px',
-                height: '40px',
-                lineHeight: '40px',
-                fontSize: '1.5rem',
-                fontWeight: 'bold',
-                marginBottom: '10px'
-              }}
-            >
-              {getInitial(email)}
-            </span>
-            Welcome, {email}!<br />
-            <button type="button" style={{marginTop: '18px'}} onClick={handleLogout}>Logout</button>
+        {message && (
+          <div style={{
+            color: message.includes('✅') ? '#1a237e' : '#e53935', 
+            marginBottom: '12px', 
+            textAlign: 'center',
+            padding: '10px',
+            borderRadius: '6px',
+            backgroundColor: message.includes('✅') ? '#e8f5e8' : '#ffebee',
+            border: `1px solid ${message.includes('✅') ? '#4caf50' : '#f44336'}`
+          }}>
+            {message}
           </div>
         )}
+        <label>Email</label>
+        <input
+          type="email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          required
+          placeholder="Enter your email"
+          disabled={loading}
+        />
+        <label>Password</label>
+        <input
+          type="password"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          required
+          placeholder="Enter your password"
+          disabled={loading}
+        />
+        <button 
+          type="submit" 
+          disabled={loading}
+          style={{
+            opacity: loading ? 0.6 : 1,
+            cursor: loading ? 'not-allowed' : 'pointer'
+          }}
+        >
+          {loading ? 'Logging in...' : 'Login'}
+        </button>
+        <p className="login-link">
+          Don't have an account? <a href="/register">Register</a>
+        </p>
       </form>
     </div>
   )

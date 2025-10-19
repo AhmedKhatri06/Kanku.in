@@ -9,10 +9,12 @@
     justify-content: center;
 }
 .hero-text{
-    text-align: center;
-    justify-content: center;
-    max-width:1000px;
     color: rgb(2, 2, 2);
+    text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.7);
+    /* OR add semi-transparent background */
+    background: rgba(255, 255, 255, 0.8);
+    padding: 30px;
+    border-radius: 10px;
 }
 .hero-text h1{
     font-size: 60px;

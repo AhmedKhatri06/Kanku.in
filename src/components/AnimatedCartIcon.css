@@ -1,0 +1,227 @@
+.cart-icon-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.cart-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: #ff9800;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.cart-icon:hover {
+  background: #f57c00;
+  transform: scale(1.05);
+}
+
+.cart-svg {
+  width: 24px;
+  height: 24px;
+  transition: transform 0.3s ease;
+}
+
+/* Bounce Animation */
+.cart-icon.bounce {
+  animation: bounce 0.6s ease;
+}
+
+@keyframes bounce {
+  0%, 20%, 60%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-10px);
+  }
+  80% {
+    transform: translateY(-5px);
+  }
+}
+
+/* Add to Cart Animation */
+.cart-icon.add-animation {
+  animation: addToCart 0.6s ease;
+}
+
+@keyframes addToCart {
+  0% {
+    transform: scale(1);
+    background: #ff9800;
+  }
+  25% {
+    transform: scale(1.2);
+    background: #4caf50;
+  }
+  50% {
+    transform: scale(0.9);
+    background: #ff9800;
+  }
+  75% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    background: #ff9800;
+  }
+}
+
+/* Cart Badge */
+.cart-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: #e53935;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 0.7rem;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid white;
+  animation: badgePop 0.3s ease;
+}
+
+.cart-badge.pulse {
+  animation: badgePulse 1.2s ease;
+}
+
+@keyframes badgePop {
+  0% {
+    transform: scale(0);
+  }
+  70% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes badgePulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(229, 57, 53, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(229, 57, 53, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(229, 57, 53, 0);
+  }
+}
+
+/* Flying Items Animation */
+.flying-items {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.flying-item {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #4caf50;
+  border-radius: 50%;
+  opacity: 0;
+}
+
+.cart-icon.add-animation .flying-item:nth-child(1) {
+  animation: fly1 0.8s ease;
+}
+
+.cart-icon.add-animation .flying-item:nth-child(2) {
+  animation: fly2 0.8s ease;
+}
+
+.cart-icon.add-animation .flying-item:nth-child(3) {
+  animation: fly3 0.8s ease;
+}
+
+@keyframes fly1 {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(-15px, -20px) scale(0.8);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(-25px, -35px) scale(0);
+    opacity: 0;
+  }
+}
+
+@keyframes fly2 {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(0, -25px) scale(0.8);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(0, -45px) scale(0);
+    opacity: 0;
+  }
+}
+
+@keyframes fly3 {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(15px, -20px) scale(0.8);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(25px, -35px) scale(0);
+    opacity: 0;
+  }
+}
+
+/* Shake animation when cart is full */
+.cart-icon.shake {
+  animation: shake 0.5s ease;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .cart-icon {
+    width: 45px;
+    height: 45px;
+  }
+  
+  .cart-svg {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .cart-badge {
+    width: 18px;
+    height: 18px;
+    font-size: 0.6rem;
+  }
+}

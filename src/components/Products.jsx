@@ -72,7 +72,7 @@ const allProducts = [
     },
     {
       _id: '5',
-      name: 'Designer Kurti',
+      name: 'Designer Kurta',
       description: 'Traditional kurti with modern design',
       price: 1299,
       category: 'Kurtas',
@@ -138,7 +138,7 @@ const allProducts = [
       category: 'Traditional',
       image: 'pr6',
       stock: 4,
-      rating: 4.9
+      rating: 3.5
     }
 ];
 
@@ -246,7 +246,8 @@ const Products = () => {
       {/* Search and Filter Bar */}
       <SearchBar onSearch={handleSearch} onFilter={handleFilter} />
       
-      {/* Products Count */}
+     
+      {/* Products Count }
       <div className="products-info">
         <p>Showing {products.length} of {allProducts.length} products</p>
         {(searchTerm || filters.category !== 'all') && (
@@ -266,8 +267,9 @@ const Products = () => {
           </div>
         )}
       </div>
-
+        
       {/* Products Grid */}
+    
       {products.length === 0 ? (
         <div className="no-products">
           <h3>No products found</h3>

@@ -3,6 +3,7 @@ import './Hero.css'
 import hero from '../../assets/hero.jpg'
 import insta from '../../assets/insta.png'
 import home from '../home.jsx'
+import { Link } from 'react-router-dom'
 const Hero = () => {
   return (
     <div>
@@ -22,11 +23,11 @@ const Hero = () => {
           <br></br>
           <br></br>
 
-          {<a href='https://www.instagram.com/kanku.in/' target='blank'>
+          <Link to="/home">
             <button className='btn'>
               Explore More
             </button>
-          </a>}
+          </Link>
         </p>
         <home/>
       </div>

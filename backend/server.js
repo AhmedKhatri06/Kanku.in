@@ -8,13 +8,22 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5002;
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
+app.use((req, res, next) => {
+  console.log(`📨 ${req.method} ${req.path}`, {
+    body: req.body,
+    query: req.query,
+    params: req.params,
+    headers: req.headers['authorization'] ? 'Authorization present' : 'No auth'
+  });
+  next();
+});
 // MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI;
 
@@ -49,11 +58,19 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Password is required'],
     minlength: 6
+  },
+  isAdmin:
+  {
+    type: Boolean,
+    default: false
+  },
+  role: {
+    type: String,
+    default: 'user'
   }
 }, {
   timestamps: true
 });
-
 const User = mongoose.model('User', userSchema);
 
 // Product Schema
@@ -92,12 +109,114 @@ const productSchema = new mongoose.Schema({
 
 const Product = mongoose.model('Product', productSchema);
 
+// Order Schema
+const orderSchema = new mongoose.Schema({
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  items: [{
+    product: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Product',
+      required: true
+    },
+    quantity: {
+      type: Number,
+      required: true,
+      min: 1
+    },
+    price: {
+      type: Number,
+      required: true
+    }
+  }],
+  totalAmount: {
+    type: Number,
+    required: true
+  },
+  shippingAddress: {
+    name: String,
+    address: String,
+    city: String,
+    state: String,
+    pincode: String,
+    phone: String
+  },
+  paymentStatus: {
+    type: String,
+    enum: ['pending', 'completed', 'failed', 'refunded'],
+    default: 'pending'
+  },
+  orderStatus: {
+    type: String,
+    enum: ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'],
+    default: 'pending'
+  },
+  paymentMethod: {
+    type: String,
+    enum: ['cod', 'card', 'upi', 'netbanking'],
+    default: 'cod'
+  },
+  transactionId: String
+}, {
+  timestamps: true
+});
+const Order = mongoose.model('Order', orderSchema);
+
+// Review Schema
+const reviewSchema = new mongoose.Schema({
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  product: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product',
+    required: true
+  },
+  rating: {
+    type: Number,
+    required: true,
+    min: 1,
+    max: 5
+  },
+  comment: {
+    type: String,
+    required: true
+  }
+}, {
+  timestamps: true
+});
+
+// Wishlist Schema
+const wishlistSchema = new mongoose.Schema({
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  products: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product'
+  }]
+});
+
+const Wishlist = mongoose.model('Wishlist', wishlistSchema);
+const Review = mongoose.model('Review', reviewSchema);
+
 // Middleware to authenticate JWT token
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
+  console.log('🔐 Auth Header:', authHeader);
+  console.log('🔐 Token received:', token ? 'PRESENT' : 'MISSING');
+
   if (!token) {
+    console.log('❌ No token provided');
     return res.status(401).json({ 
       success: false,
       message: 'Access token required' 
@@ -106,11 +225,13 @@ function authenticateToken(req, res, next) {
 
   jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) {
+      console.log('❌ Token verification failed:', err.message);
       return res.status(403).json({ 
         success: false,
         message: 'Invalid or expired token' 
       });
     }
+    console.log('✅ Token verified, user:', user);
     req.user = user;
     next();
   });
@@ -170,21 +291,29 @@ app.post('/register', async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
+    // ✅ NEW: Check if this is the first user (make them admin)
+    const userCount = await User.countDocuments();
+    const isFirstUser = userCount === 0;
+
     // Create user
     const user = new User({
       name,
       email: email.toLowerCase(),
-      password: hashedPassword
+      password: hashedPassword,
+      isAdmin: isFirstUser,
+      role: isFirstUser ? 'admin' : 'user'
     });
 
     await user.save();
     console.log('✅ User registered successfully:', email);
+    console.log('👑 Admin status:', isFirstUser ? 'Yes (First User)' : 'No');
 
     // Generate token
     const token = jwt.sign(
       { 
         userId: user._id,
-        email: user.email 
+        email: user.email,
+        isAdmin: user.isAdmin
       }, 
       JWT_SECRET, 
       { expiresIn: '24h' }
@@ -197,7 +326,9 @@ app.post('/register', async (req, res) => {
       user: {
         id: user._id,
         name: user.name,
-        email: user.email
+        email: user.email,
+        isAdmin: user.isAdmin,
+        role: user.role
       }
     });
 
@@ -256,7 +387,8 @@ app.post('/login', async (req, res) => {
     const token = jwt.sign(
       { 
         userId: user._id,
-        email: user.email 
+        email: user.email,
+        isAdmin: user.isAdmin
       }, 
       JWT_SECRET, 
       { expiresIn: '24h' }
@@ -271,7 +403,9 @@ app.post('/login', async (req, res) => {
       user: {
         id: user._id,
         name: user.name,
-        email: user.email
+        email: user.email,
+        isAdmin: user.isAdmin,
+        role: user.role
       }
     });
 
@@ -283,6 +417,387 @@ app.post('/login', async (req, res) => {
     });
   }
 });
+
+// ========== ADMIN ROUTES ==========
+
+// Admin Users Route
+// Admin Users Route - ADD DEBUGGING
+app.get('/admin/users', authenticateToken, async (req, res) => {
+  try {
+    console.log('🔍 ADMIN USERS REQUEST DEBUG:');
+    console.log('📨 Headers:', req.headers);
+    console.log('👤 User ID from token:', req.user.userId);
+    console.log('📧 User email from token:', req.user.email);
+    console.log('👑 Is admin from token:', req.user.isAdmin);
+    
+    // Check if user exists in database
+    const adminUser = await User.findById(req.user.userId);
+    console.log('🔍 Admin user from DB:', adminUser ? {
+      id: adminUser._id,
+      name: adminUser.name,
+      email: adminUser.email,
+      isAdmin: adminUser.isAdmin,
+      role: adminUser.role
+    } : 'USER NOT FOUND');
+    
+    if (!adminUser) {
+      console.log('❌ User not found in database');
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    if (!adminUser.isAdmin) {
+      console.log('❌ User is not admin');
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin only.'
+      });
+    }
+
+    console.log('✅ User is admin, fetching users...');
+    const users = await User.find().select('-password').sort({ createdAt: -1 });
+    console.log(`📊 Found ${users.length} users`);
+    
+    res.json({
+      success: true,
+      users: users
+    });
+    
+  } catch (error) {
+    console.error('❌ Admin users error:', error);
+    console.error('❌ Error stack:', error.stack);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching users: ' + error.message
+    });
+  }
+});
+// Admin Update User Route
+app.put('/admin/users/:id', authenticateToken, async (req, res) => {
+  try {
+    // Check if user is admin
+    const adminUser = await User.findById(req.user.userId);
+    if (!adminUser.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin only.'
+      });
+    }
+
+    const { role } = req.body;
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { role, isAdmin: role === 'admin' },
+      { new: true }
+    ).select('-password');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'User role updated successfully',
+      user
+    });
+  } catch (error) {
+    console.error('❌ Admin update user error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating user'
+    });
+  }
+});
+
+// Admin Products Route
+app.get('/admin/products', authenticateToken, async (req, res) => {
+  try {
+    // Check if user is admin
+    const adminUser = await User.findById(req.user.userId);
+    if (!adminUser.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin only.'
+      });
+    }
+
+    const products = await Product.find().sort({ createdAt: -1 });
+    
+    res.json({
+      success: true,
+      products: products
+    });
+  } catch (error) {
+    console.error('❌ Admin products error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching products'
+    });
+  }
+});
+
+// ADD THIS ROUTE RIGHT AFTER YOUR EXISTING GET /admin/products ROUTE
+
+app.post('/admin/products', authenticateToken, async (req, res) => {
+  try {
+    console.log('🔄 Admin creating new product...');
+    
+    // Check if user is admin
+    const adminUser = await User.findById(req.user.userId);
+    if (!adminUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    if (!adminUser.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin only.'
+      });
+    }
+
+    const { name, description, price, category, stock, image } = req.body;
+    console.log('📦 Received product data:', req.body);
+
+    // Validation
+    if (!name || !description || !price || !category) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name, description, price, and category are required'
+      });
+    }
+
+    // Handle category validation
+    const validCategories = ['saree', 'kurta', 'accessory', 'jewelry', 'footwear'];
+    const formattedCategory = category.toLowerCase().trim();
+    
+    if (!validCategories.includes(formattedCategory)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid category. Must be one of: ${validCategories.join(', ')}`
+      });
+    }
+
+    // Create new product
+    const newProduct = new Product({
+      name,
+      description,
+      price: parseFloat(price),
+      category: formattedCategory,
+      stock: parseInt(stock) || 10,
+      image: image || 'default-image-url'
+    });
+
+    await newProduct.save();
+    
+    console.log('✅ Product created successfully:', name);
+
+    res.status(201).json({
+      success: true,
+      message: 'Product created successfully',
+      product: newProduct
+    });
+
+  } catch (error) {
+    console.error('❌ Admin create product error:', error);
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        message: errors.join(', ')
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      message: 'Error creating product: ' + error.message
+    });
+  }
+});
+app.get('/test-post-route', (req, res) => {
+  res.json({
+    message: 'POST /admin/products route should be available',
+    test: 'Try making a POST request to /admin/products'
+  });
+});
+// Admin Delete Product Route
+app.delete('/admin/products/:id', authenticateToken, async (req, res) => {
+  try {
+    // Check if user is admin
+    const adminUser = await User.findById(req.user.userId);
+    if (!adminUser.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin only.'
+      });
+    }
+
+    const product = await Product.findByIdAndDelete(req.params.id);
+    
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Product deleted successfully'
+    });
+  } catch (error) {
+    console.error('❌ Admin delete product error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting product'
+    });
+  }
+});
+
+// Admin Orders Route
+app.get('/admin/orders', authenticateToken, async (req, res) => {
+  try {
+    // Check if user is admin
+    const adminUser = await User.findById(req.user.userId);
+    if (!adminUser.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin only.'
+      });
+    }
+
+    const orders = await Order.find()
+      .populate('user', 'name email')
+      .populate('items.product')
+      .sort({ createdAt: -1 });
+    
+    res.json({
+      success: true,
+      orders: orders
+    });
+  } catch (error) {
+    console.error('❌ Admin orders error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching orders'
+    });
+  }
+});
+
+// Admin Update Order Route
+app.put('/admin/orders/:id', authenticateToken, async (req, res) => {
+  try {
+    // Check if user is admin
+    const adminUser = await User.findById(req.user.userId);
+    if (!adminUser.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin only.'
+      });
+    }
+
+    const { orderStatus } = req.body;
+    const order = await Order.findByIdAndUpdate(
+      req.params.id,
+      { orderStatus },
+      { new: true }
+    ).populate('user', 'name email');
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Order status updated successfully',
+      order
+    });
+  } catch (error) {
+    console.error('❌ Admin update order error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating order'
+    });
+  }
+});
+
+// Admin Dashboard Analytics Route
+app.get('/admin/dashboard', authenticateToken, async (req, res) => {
+  try {
+    // Check if user is admin
+    const adminUser = await User.findById(req.user.userId);
+    if (!adminUser.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin only.'
+      });
+    }
+
+    const totalUsers = await User.countDocuments();
+    const totalProducts = await Product.countDocuments();
+    const totalOrders = await Order.countDocuments();
+    
+    const totalRevenue = await Order.aggregate([
+      { $match: { paymentStatus: 'completed' } },
+      { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+    ]);
+
+    const orderStatus = await Order.aggregate([
+      { $group: { _id: '$orderStatus', count: { $sum: 1 } } }
+    ]);
+
+    // Popular products
+    const popularProducts = await Order.aggregate([
+      { $unwind: '$items' },
+      { $group: { 
+        _id: '$items.product', 
+        totalSold: { $sum: '$items.quantity' } 
+      }},
+      { $sort: { totalSold: -1 } },
+      { $limit: 5 },
+      { $lookup: {
+        from: 'products',
+        localField: '_id',
+        foreignField: '_id',
+        as: 'product'
+      }},
+      { $unwind: '$product' }
+    ]);
+
+    res.json({
+      success: true,
+      dashboard: {
+        totalUsers,
+        totalProducts,
+        totalOrders,
+        totalRevenue: totalRevenue[0]?.total || 0,
+        orderStatus,
+        popularProducts
+      }
+    });
+  } catch (error) {
+    console.error('❌ Admin dashboard error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching dashboard data'
+    });
+  }
+});
+
+// ========== EXISTING ROUTES (Keep all your existing routes below) ==========
+
 // Update user profile (protected route)
 app.put('/profile', authenticateToken, async (req, res) => {
   try {
@@ -405,6 +920,7 @@ app.put('/profile', authenticateToken, async (req, res) => {
     });
   }
 });
+
 // Product routes
 
 // Get all products (public route - no authentication needed)
@@ -446,176 +962,13 @@ app.get('/products/category/:category', async (req, res) => {
   }
 });
 
-// Add new product (protected route - for admin)
-// Add products to database (one-time setup)
-app.post('/add-products', async (req, res) => {
-  try {
-    console.log('🔄 Adding products to database...');
-    
-    const products = [
-      {
-        name: 'Elegant Evening Dress',
-        description: 'Beautiful floor-length evening gown perfect for special occasions',
-        price: 3499,
-        category: 'Dresses',
-        image: 'pr1',
-        stock: 8,
-        rating: 4.5
-      },
-      {
-        name: 'Summer Floral Dress',
-        description: 'Light and comfortable floral print dress for summer',
-        price: 1999,
-        category: 'Dresses',
-        image: 'pr2',
-        stock: 15,
-        rating: 4.2
-      },
-      {
-        name: 'Casual Day Dress',
-        description: 'Perfect for everyday wear with comfortable fabric',
-        price: 1599,
-        category: 'Dresses',
-        image: 'pr3',
-        stock: 12,
-        rating: 4.3
-      },
-      {
-        name: 'Party Wear Gown',
-        description: 'Stylish party gown with elegant design',
-        price: 4299,
-        category: 'Dresses',
-        image: 'pr4',
-        stock: 5,
-        rating: 4.7
-      },
-      {
-        name: 'Designer Kurti',
-        description: 'Traditional kurti with modern design',
-        price: 1299,
-        category: 'Kurtas',
-        image: 'pr10',
-        stock: 20,
-        rating: 4.4
-      },
-      {
-        name: 'Embroidered Kurta',
-        description: 'Hand-embroidered kurta with intricate patterns',
-        price: 1899,
-        category: 'Kurtas',
-        image: 'pr11',
-        stock: 10,
-        rating: 4.6
-      },
-      {
-        name: 'Diamond Necklace',
-        description: 'Beautiful diamond necklace for special occasions',
-        price: 5999,
-        category: 'Jewelry',
-        image: 'pr7',
-        stock: 7,
-        rating: 4.8
-      },
-      {
-        name: 'Gold Earrings',
-        description: 'Elegant gold earrings with precious stones',
-        price: 2999,
-        category: 'Jewelry',
-        image: 'pr8',
-        stock: 12,
-        rating: 4.5
-      },
-      {
-        name: 'Sports Shoes',
-        description: 'Comfortable running shoes for daily wear',
-        price: 2499,
-        category: 'Footwear',
-        image: 'pr9',
-        stock: 25,
-        rating: 4.1
-      },
-      {
-        name: 'Designer Saree',
-        description: 'Traditional silk saree with modern touch',
-        price: 4599,
-        category: 'Traditional',
-        image: 'pr5',
-        stock: 6,
-        rating: 4.7
-      },
-      {
-        name: 'Lehenga Choli',
-        description: 'Traditional lehenga for festivals and weddings',
-        price: 6999,
-        category: 'Traditional',
-        image: 'pr6',
-        stock: 4,
-        rating: 4.9
-      }
-    ];
-
-    // Clear existing products
-    await Product.deleteMany({});
-    console.log('🗑️ Cleared existing products');
-
-    // Add new products
-    const result = await Product.insertMany(products);
-    console.log(`✅ Added ${result.length} products to database`);
-
-    res.json({
-      success: true,
-      message: `${result.length} products added successfully`,
-      products: result
-    });
-
-  } catch (error) {
-    console.error('❌ Error adding products:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error adding products to database'
-    });
-  }
-});
-
-// Add multiple products at once (for initial setup)
-/*app.post('/products/bulk', authenticateToken, async (req, res) => {
-  try {
-    const products = req.body.products;
-
-    if (!products || !Array.isArray(products)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Products array is required'
-      });
-    }
-
-    const insertedProducts = await Product.insertMany(products);
-    
-    res.status(201).json({
-      success: true,
-      message: `${insertedProducts.length} products added successfully`,
-      products: insertedProducts
-    });
-
-  } catch (error) {
-    console.error('Error adding bulk products:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error adding products'
-    });
-  }
-});
-*/
-
-// ========== USER MANAGEMENT ROUTES ==========
-
 // Get all users (for admin purposes)
 app.get('/users', async (req, res) => {
   try {
     const users = await User.find().select('-password').sort({ createdAt: -1 });
     
     res.json({
-      success: true,
+      success: false,
       count: users.length,
       users: users
     });
@@ -627,8 +980,6 @@ app.get('/users', async (req, res) => {
     });
   }
 });
-
-// ========== PROTECTED ROUTES ==========
 
 // Protected route - Get user profile
 app.get('/profile', authenticateToken, async (req, res) => {
@@ -654,87 +1005,122 @@ app.get('/profile', authenticateToken, async (req, res) => {
   }
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err);
-  res.status(500).json({
-    success: false,
-    message: 'Something went wrong!'
-  });
-});
+app.post('/add-products', async (req, res) => {
+  try {
+    console.log('🔄 Adding products to database...');
+    
+    const products = [
+  {
+    name: 'Elegant Evening Saree',
+    description: 'Beautiful floor-length evening saree perfect for special occasions',
+    price: 3499,
+    category: 'saree',
+    image: 'pr1',
+    stock: 8
+  },
+  {
+    name: 'Summer Floral Saree',
+    description: 'Light and comfortable floral print saree for summer',
+    price: 1999,
+    category: 'saree',
+    image: 'pr2',
+    stock: 15
+  },
+  {
+    name: 'Casual Cotton Saree',
+    description: 'Perfect for everyday wear with comfortable fabric',
+    price: 1599,
+    category: 'saree',
+    image: 'pr3',
+    stock: 12
+  },
+  {
+    name: 'Party Wear Saree',
+    description: 'Stylish party saree with elegant design',
+    price: 4299,
+    category: 'saree',
+    image: 'pr4',
+    stock: 5
+  },
+  {
+    name: 'Designer Kurti',
+    description: 'Traditional kurti with modern design',
+    price: 1299,
+    category: 'kurta',
+    image: 'pr10',
+    stock: 20
+  },
+  {
+    name: 'Embroidered Kurta',
+    description: 'Hand-embroidered kurta with intricate patterns',
+    price: 1899,
+    category: 'kurta',
+    image: 'pr11',
+    stock: 10
+  },
+  {
+    name: 'Diamond Necklace',
+    description: 'Beautiful diamond necklace for special occasions',
+    price: 5999,
+    category: 'jewelry',
+    image: 'pr7',
+    stock: 7
+  },
+  {
+    name: 'Gold Earrings',
+    description: 'Elegant gold earrings with precious stones',
+    price: 2999,
+    category: 'jewelry',
+    image: 'pr8',
+    stock: 12
+  },
+  {
+    name: 'Silver Anklet',
+    description: 'Traditional silver anklet with intricate designs',
+    price: 2499,
+    category: 'jewelry',
+    image: 'pr9',
+    stock: 25
+  },
+  {
+    name: 'Designer Silk Saree',
+    description: 'Traditional silk saree with modern touch',
+    price: 4599,
+    category: 'saree',
+    image: 'pr5',
+    stock: 6
+  },
+  {
+    name: 'Traditional Lehenga',
+    description: 'Traditional lehenga for festivals and weddings',
+    price: 6999,
+    category: 'saree',
+    image: 'pr6',
+    stock: 4
+  }
+];
 
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'Route not found'
-  });
-});
+    // Clear existing products
+    await Product.deleteMany({});
+    console.log('🗑️ Cleared existing products');
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-  console.log(`📡 MongoDB Atlas: Connected`);
-  console.log(`🔗 Health check: http://localhost:${PORT}/health`);
-  console.log(`🔗 Test endpoint: http://localhost:${PORT}/test`);
-  console.log(`🛍️ Products endpoint: http://localhost:${PORT}/products`);
-  console.log(`👥 Users endpoint: http://localhost:${PORT}/users`);
-});
+    // Add new products
+    const result = await Product.insertMany(products);
+    console.log(`✅ Added ${result.length} products to database`);
 
+    res.json({
+      success: true,
+      message: `${result.length} products added successfully`,
+      products: result
+    });
 
-// Order Schema
-const orderSchema = new mongoose.Schema({
-  user: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  items: [{
-    product: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Product',
-      required: true
-    },
-    quantity: {
-      type: Number,
-      required: true,
-      min: 1
-    },
-    price: {
-      type: Number,
-      required: true
-    }
-  }],
-  totalAmount: {
-    type: Number,
-    required: true
-  },
-  shippingAddress: {
-    name: String,
-    address: String,
-    city: String,
-    state: String,
-    pincode: String,
-    phone: String
-  },
-  paymentStatus: {
-    type: String,
-    enum: ['pending', 'completed', 'failed', 'refunded'],
-    default: 'pending'
-  },
-  orderStatus: {
-    type: String,
-    enum: ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'],
-    default: 'pending'
-  },
-  paymentMethod: {
-    type: String,
-    enum: ['cod', 'card', 'upi', 'netbanking'],
-    default: 'cod'
-  },
-  transactionId: String
-}, {
-  timestamps: true
+  } catch (error) {
+    console.error('❌ Error adding products:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error adding products to database'
+    });
+  }
 });
 
 // Order Routes
@@ -818,19 +1204,6 @@ app.get('/orders', authenticateToken, async (req, res) => {
   }
 });
 
-// Wishlist Schema
-const wishlistSchema = new mongoose.Schema({
-  user: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  products: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Product'
-  }]
-});
-
 // Wishlist Routes
 app.post('/wishlist', authenticateToken, async (req, res) => {
   try {
@@ -867,32 +1240,6 @@ app.post('/wishlist', authenticateToken, async (req, res) => {
       message: 'Error adding to wishlist'
     });
   }
-});
-
-// Review Schema
-const reviewSchema = new mongoose.Schema({
-  user: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  product: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Product',
-    required: true
-  },
-  rating: {
-    type: Number,
-    required: true,
-    min: 1,
-    max: 5
-  },
-  comment: {
-    type: String,
-    required: true
-  }
-}, {
-  timestamps: true
 });
 
 // Add review and update product rating
@@ -942,90 +1289,6 @@ app.post('/reviews', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error adding review'
-    });
-  }
-});
-
-// Admin Routes
-app.get('/admin/stats', authenticateToken, async (req, res) => {
-  try {
-    // Check if user is admin (you'll need to add admin field to user schema)
-    const user = await User.findById(req.user.userId);
-    if (!user.isAdmin) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Admin only.'
-      });
-    }
-    
-    const totalUsers = await User.countDocuments();
-    const totalProducts = await Product.countDocuments();
-    const totalOrders = await Order.countDocuments();
-    const totalRevenue = await Order.aggregate([
-      { $match: { paymentStatus: 'completed' } },
-      { $group: { _id: null, total: { $sum: '$totalAmount' } } }
-    ]);
-    
-    const recentOrders = await Order.find()
-      .populate('user', 'name email')
-      .sort({ createdAt: -1 })
-      .limit(10);
-    
-    res.json({
-      success: true,
-      stats: {
-        totalUsers,
-        totalProducts,
-        totalOrders,
-        totalRevenue: totalRevenue[0]?.total || 0,
-        recentOrders
-      }
-    });
-    
-  } catch (error) {
-    console.error('Admin stats error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching admin stats'
-    });
-  }
-});
-
-// Product management routes for admin
-app.put('/admin/products/:id', authenticateToken, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.userId);
-    if (!user.isAdmin) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Admin only.'
-      });
-    }
-    
-    const product = await Product.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
-    
-    if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: 'Product not found'
-      });
-    }
-    
-    res.json({
-      success: true,
-      message: 'Product updated successfully',
-      product
-    });
-    
-  } catch (error) {
-    console.error('Product update error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error updating product'
     });
   }
 });
@@ -1092,98 +1355,31 @@ app.get('/products/search', async (req, res) => {
   }
 });
 
-// Add after your existing routes in server.js
-
-// Admin Stats Route
-app.get('/admin/stats', authenticateToken, async (req, res) => {
-  try {
-    // In real app, check if user is admin
-    const totalUsers = await User.countDocuments();
-    const totalProducts = await Product.countDocuments();
-    const totalOrders = await Order.countDocuments();
-    const totalRevenue = await Order.aggregate([
-      { $match: { paymentStatus: 'completed' } },
-      { $group: { _id: null, total: { $sum: '$totalAmount' } } }
-    ]);
-
-    res.json({
-      success: true,
-      stats: {
-        totalUsers,
-        totalProducts,
-        totalOrders,
-        totalRevenue: totalRevenue[0]?.total || 0
-      }
-    });
-  } catch (error) {
-    console.error('Admin stats error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching admin stats'
-    });
-  }
+app.use((req, res, next) => {
+  console.log(`📨 ${req.method} ${req.path}`, {
+    body: req.body,
+    query: req.query,
+    params: req.params
+  });
+  next();
 });
 
-// Admin Orders Route
-app.get('/admin/orders', authenticateToken, async (req, res) => {
-  try {
-    const orders = await Order.find()
-      .populate('user', 'name email')
-      .sort({ createdAt: -1 });
-    
-    res.json({
-      success: true,
-      orders
-    });
-  } catch (error) {
-    console.error('Admin orders error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching orders'
-    });
-  }
+// 404 handler
+app.use('*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'Route not found'
+  });
 });
 
-// Update Order Status
-app.put('/admin/orders/:id', authenticateToken, async (req, res) => {
-  try {
-    const { status } = req.body;
-    const order = await Order.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { new: true }
-    );
-    
-    res.json({
-      success: true,
-      message: 'Order status updated',
-      order
-    });
-  } catch (error) {
-    console.error('Update order error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error updating order'
-    });
-  }
-});
-
-// Add Product (Admin)
-app.post('/admin/products', authenticateToken, async (req, res) => {
-  try {
-    const product = new Product(req.body);
-    await product.save();
-    
-    res.json({
-      success: true,
-      message: 'Product added successfully',
-      product
-    });
-  } catch (error) {
-    console.error('Add product error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error adding product'
-    });
-  }
+// Start server
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`📡 MongoDB Atlas: Connected`);
+  console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+  console.log(`🔗 Test endpoint: http://localhost:${PORT}/test`);
+  console.log(`🛍️ Products endpoint: http://localhost:${PORT}/products`);
+  console.log(`👥 Users endpoint: http://localhost:${PORT}/users`);
+  console.log(`🔐 Auth endpoints: /register , /login`);
+  console.log(`👑 Admin endpoints: /admin/users, /admin/products, /admin/orders, /admin/dashboard`);
 });

@@ -1,15 +1,4 @@
 
-/*.login-container {
-  min-height: 100vh;
-  width: 100vw;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #ffdede 60%, #f8fafc 100%);
-  padding: 24px; /* Adds space around the form on big screens 
-  box-sizing: border-box;
-  max-width: 100vw;
-}*/
 
 .login-form {
   background: #fff;
@@ -22,8 +11,7 @@
   flex-direction: column;
   margin: 0 auto;
   justify-content: center;
-  margin-top:40px;
-  
+  margin-top: 85px;
 }
 
 .login-form h2 {

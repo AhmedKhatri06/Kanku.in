@@ -79,4 +79,4 @@ const SearchBar = ({ onSearch, onFilter }) => {
   )
 }
 
-export default SearchBar
+export default SearchBar;

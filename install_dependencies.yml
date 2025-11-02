@@ -1,0 +1,42 @@
+---
+- name: Install necessary software for Kanku.in project
+  hosts: local
+  become: yes
+
+  tasks:
+    - name: Update apt packages
+      apt:
+        update_cache: yes
+        upgrade: yes
+
+    - name: Install basic utilities
+      apt:
+        name:
+          - git
+          - curl
+        state: present
+
+    - name: Install Node.js and npm
+      apt:
+        name:
+          - nodejs
+          - npm
+        state: present
+
+    - name: Install MongoDB
+      apt:
+        name: mongodb
+        state: present
+
+    - name: Install Docker and Docker Compose
+      apt:
+        name:
+          - docker.io
+          - docker-compose
+        state: present
+
+    - name: Start and enable Docker
+      service:
+        name: docker
+        state: started
+        enabled: yes
